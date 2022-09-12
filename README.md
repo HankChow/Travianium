@@ -17,11 +17,13 @@ Travian is a web game I used to play more tha n ten years ago. It spends lots of
   * level of resource fields and buildings
   * building list
   * maps
+* actions
+  * upgrading resource fields
 
 ### To do
 * getting information
   * villages
 * actions
-  * upgrading resource fields and buildings
+  * upgrading buildings
   * producing troops
   * sending troops

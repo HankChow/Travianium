@@ -200,3 +200,35 @@ class Travian(object):
                     } for index, _ in enumerate(map_details.select("table#distribution tr")) if _.select("td.val")]
         return tile_info
 
+    def upgrade(self, slot_id, building_id=None):
+        info = self.get_info()
+        if 1 <= slot_id <= 18:  # resource fields
+            resource_id = [_ for _ in info["resource_fields"] if _["id"] == slot_id][0]["resource_id"]
+            action_page = self.session.get("https://{server}{url}".format(
+                server=self.server,
+                url=self.urls["build"]
+            ), params={
+                "id": slot_id,
+                "gid": resource_id
+            })
+            action_soup = BeautifulSoup(action_page.text, "html.parser")
+            action_info = {"consume": {}}
+            action_consume = action_soup.select("div#contract div.resource")
+            action_info["consume"]["lumber"] = action_consume[0].get_text()
+            action_info["consume"]["clay"] = action_consume[1].get_text()
+            action_info["consume"]["iron"] = action_consume[2].get_text()
+            action_info["consume"]["crop"] = action_consume[3].get_text()
+            action_info["consume"]["free_crop"] = action_consume[4].get_text()
+            action_info["duration"] = action_soup.select("div.duration")[0].get_text()
+            action_button = action_soup.select("div.upgradeButtonsContainer button")[0]
+            if "green" in action_button.get("class"):
+                action_info["url"] = action_button.get("onclick").split("'")[1]
+                self.session.get("https://{server}{url}".format(
+                    server=self.server,
+                    url=action_info["url"])
+                )
+                return True
+            else:
+                return False
+        if 19 <= slot_id <= 40:  # buildings
+            pass  # to be done
