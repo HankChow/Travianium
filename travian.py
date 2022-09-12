@@ -18,6 +18,7 @@ class Travian(object):
             "login": "/api/v1/auth/login",
             "dorf1": "/dorf1.php",
             "dorf2": "/dorf2.php",
+            "tile": "/api/v1/map/tile-details",
         }
         self.selectors = {
             "dorf1_player_name": "div#sidebarBoxActiveVillage div.playerName",
@@ -43,10 +44,12 @@ class Travian(object):
         }).json()
         nonce = nonce_json.get("nonce")
         if nonce:
-            self.session.post("https://{server}/api/v1/auth/{nonce}".format(
+            token_json = self.session.post("https://{server}/api/v1/auth/{nonce}".format(
                 server=self.server,
                 nonce=nonce
-            ))
+            )).json()
+            token = token_json.get("token")
+            self.token = token
             test_login = self.session.get("https://{server}{url}".format(
                 server=self.server,
                 url=self.urls["dorf1"]
@@ -121,7 +124,7 @@ class Travian(object):
                         "type": _.select("div.mov")[0].get_text().split()[1],
                         "count": int(_.select("div.mov")[0].get_text().split()[0]),
                         "duration": _.select("div.dur_r span.timer")[0].get_text()
-                    } for _ in movement.select("tr")[1:]]
+                    } for _ in movement.select("tr") if _.select("div.mov") and _.select("div.dur_r span.timer")]
         building_list = soup_dorf1.select(self.selectors["dorf1_building_list"])
         if building_list:
             info["building_list"] = []
@@ -148,3 +151,52 @@ class Travian(object):
             }
             info["buildings"].append(b)
         return info
+        
+    def get_tile_info(self, x, y):
+        tile_json = self.session.post("https://{server}{url}".format(
+            server=self.server,
+            url=self.urls["tile"]
+        ), json={
+            "x": x,
+            "y": y
+        }, headers={
+            "Authorization": "Bearer {}".format(self.token)
+        }).json()
+        tile_html = tile_json["html"]
+        soup_tile = BeautifulSoup(tile_html, "html.parser")
+        # return soup_tile
+        tile_info = {}
+        if not soup_tile.select("div#map_details"):
+            tile_info["type"] = "wilderness"
+        else:
+            map_details = soup_tile.select("div#map_details")[0]
+            if "oasis" in soup_tile.select("div#tileDetails")[0].get("class"):
+                tile_info["type"] = "oasis"
+                tile_info["distribution"] = [{
+                    "resource": _.select("td.desc")[0].get_text(),
+                    "value": _.select("td.val")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape')
+                } for _ in map_details.select("table#distribution tr") if _.select("td.desc") and _.select("td.val")]
+                tile_info["troops"] = [{
+                    "name": _.select("td.desc")[0].get_text(),
+                    "count": _.select("td.val")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape')
+                } for _ in map_details.select("table#troop_info tr") if _.select("td.desc") and _.select("td.val")]
+            elif "village" in soup_tile.select("div#tileDetails")[0].get("class"):
+                resource_field_types = ["lumber", "clay", "iron", "crop"]
+                if map_details.select("table#village_info"):
+                    tile_info["resource_fields"] = [{
+                        "type": resource_field_types[index],
+                        "count": int(_.get_text())
+                    } for index, _ in enumerate(map_details.select("table#distribution td"))]
+                    village_info = map_details.select("table#village_info")[0]
+                    tile_info["type"] = "village"
+                    tile_info["tribe"] = village_info.select("tr.first td")[0].get_text()
+                    tile_info["owner"] = village_info.select("td.player")[0].get_text()
+                    tile_info["capital"] = True if soup_tile.select("h1 span.mainVillage") else False
+                else:
+                    tile_info["type"] = "abandoned valley"
+                    tile_info["resource_fields"] = [{
+                        "type": resource_field_types[index],
+                        "count": int(_.select("td.val")[0].get_text())
+                    } for index, _ in enumerate(map_details.select("table#distribution tr")) if _.select("td.val")]
+        return tile_info
+
