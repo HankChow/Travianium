@@ -87,17 +87,17 @@ class Travian(object):
         for resource_field in resource_fields:
             rf = {
                 "id": int([re.match("buildingSlot(\d+)", _).group(1) for _ in resource_field.get("class") if re.match("buildingSlot\d+", _)][0]),
-                "type": int([re.match("gid(\d+)", _).group(1) for _ in resource_field.get("class") if re.match("gid\d+", _)][0]),
+                "resource_id": int([re.match("gid(\d+)", _).group(1) for _ in resource_field.get("class") if re.match("gid\d+", _)][0]),
                 "level": int([re.match("level(\d+)", _).group(1) for _ in resource_field.get("class") if re.match("level\d+", _)][0])
             }
-            if rf["type"] == 1:
-                rf["type"] = "lumber"
-            elif rf["type"] == 2:
-                rf["type"] = "clay"
-            elif rf["type"] == 3:
-                rf["type"] = "iron"
-            elif rf["type"] == 4:
-                rf["type"] = "corn"
+            if rf["resource_id"] == 1:
+                rf["name"] = "lumber"
+            elif rf["resource_id"] == 2:
+                rf["name"] = "clay"
+            elif rf["resource_id"] == 3:
+                rf["name"] = "iron"
+            elif rf["resource_id"] == 4:
+                rf["name"] = "corn"
             info["resource_fields"].append(rf)
         troops = soup_dorf1.select(self.selectors["dorf1_troops"])
         if troops[0].select("td.noTroops"):
@@ -146,7 +146,7 @@ class Travian(object):
             b = {
                 "id": int(building.get("data-aid")),
                 "building_id": int(building.get("data-gid")),
-                "building_name": building.get("data-name"),
+                "name": building.get("data-name"),
                 "level": int(building.select("a")[0]["data-level"]) if building.get("data-name") else 0
             }
             info["buildings"].append(b)
