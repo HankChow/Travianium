@@ -1,15 +1,35 @@
 # Travianium
+
 Operating Travian via Python
 
+
 ### Background
+
 Travian is a web game I used to play more tha n ten years ago. It spends lots of time for executing accurate operations. I am now trying to make it simpler in operating. Since the webpages of this game is rendered at the server side, I have to parse the webpages in order to get all the information I need.
 
+
 ### Dependencies
+
 * Python 3.8+
 * requests
 * bs4
 
+
+### Usage
+
+#### Environment Variables
+
+Personal credentials are not stored in the code or certain files. They should be set in the environment variables so that they can be read safely. 
+
+Currently used environment variables are shown below:
+
+* `tr_username`: the username for logging in to Travian
+* `tr_password`: the password for looging in to Travian
+* `tr_server`: the hostname of the Travian server, for example `gos.x1.international.travian.com`
+
+
 ### Done
+
 * getting information
   * warehouse and granary
   * production
@@ -20,7 +40,9 @@ Travian is a web game I used to play more tha n ten years ago. It spends lots of
 * actions
   * upgrading resource fields
 
+
 ### To do
+
 * getting information
   * villages
 * actions
