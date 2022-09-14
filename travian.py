@@ -241,33 +241,44 @@ class Travian(object):
                     "message": "upgrade not available"
                 }
         else:  # no building at an inner slot
-            action_page = self.session.get("https://{server}{url}".format(
+            action_pages = [self.session.get("https://{server}{url}".format(
                 server=self.server,
                 url=self.urls["build"]
             ), params={
-                "id": slot_id
-            })
-            action_soup = BeautifulSoup(action_page.text, "html.parser")
-            available_building = [{
-                "id": int(re.search("\d+", _.select("div.contract")[0].get("id")).group()),
-                "name": _.select("h2")[0].get_text().lower()
-            } for _ in action_soup.select("div#build div.buildingWrapper") if _.select("button.green")]
-            if building_id not in [_["id"] for _ in available_building]:
+                "id": slot_id,
+                "category": i
+            }) for i in range(1, 4)]
+            action_soups = [BeautifulSoup(action_page.text, "html.parser") for action_page in action_pages]
+            available_buildings = []
+            for index, action_soup in enumerate(action_soups):
+                available_buildings.extend({
+                    "id": int(re.search("\d+", _.select("div.contract")[0].get("id")).group()),
+                    "name": _.select("h2")[0].get_text().lower(),
+                    "category": index + 1
+                } for _ in action_soup.select("div#build div.buildingWrapper") if _.select("button.green"))
+            if not building_id:
                 return {
                     "upgrading": False, 
-                    "available_building": available_building,
-                    "message": "building not available"
+                    "available_buildings": available_buildings,
+                    "message": "the slot is empty, building_id is needed"
+                }
+            elif building_id not in [_["id"] for _ in available_buildings]:
+                return {
+                    "upgrading": False, 
+                    "available_buildings": available_buildings,
+                    "message": "building_id not available"
                 }
             else:
                 action_info = {"demand": {}}
                 action_info["slot_id"] = slot_id
                 action_info["build_id"] = building_id
-                action_demand = action_soup.select("div#contract_building{building_id} div.resource".format(
+                building_in_category = [_ for _ in available_buildings if _["id"] == building_id][0]["category"]
+                action_demand = action_soups[building_in_category - 1].select("div#contract_building{building_id} div.resource".format(
                     building_id=building_id    
                 ))
                 action_info["demand"] = {self.mapping["resources_long"][index]: int(_.get_text()) for index, _ in enumerate(action_demand[:len(self.mapping["resources_long"])])}
-                action_info["duration"] = action_soup.select("div.duration")[0].get_text()
-                action_button = action_soup.select("div#contract_building{building_id} button.green".format(
+                action_info["duration"] = action_soups[building_in_category - 1].select("div.duration")[0].get_text()
+                action_button = action_soups[building_in_category - 1].select("div#contract_building{building_id} button.green".format(
                     building_id=building_id    
                 ))[0]
                 action_info["url"] = action_button.get("onclick").split("'")[1]
