@@ -44,6 +44,7 @@ Currently used environment variables are shown below:
 ### To do
 
 * getting information
+  * hero
   * villages
 * actions
   * producing troops
