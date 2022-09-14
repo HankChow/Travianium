@@ -38,7 +38,7 @@ Currently used environment variables are shown below:
   * building list
   * maps
 * actions
-  * upgrading resource fields
+  * upgrading resource fields and buildings
 
 
 ### To do
@@ -46,6 +46,5 @@ Currently used environment variables are shown below:
 * getting information
   * villages
 * actions
-  * upgrading buildings
   * producing troops
   * sending troops

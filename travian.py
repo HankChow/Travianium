@@ -201,31 +201,84 @@ class Travian(object):
                     } for index, _ in enumerate(map_details.select("table#distribution tr")) if _.select("td.val")]
         return tile_info
 
-    def upgrade(self, slot_id, building_id=None):
+    def upgrade(self, slot_id, building_id=None, dryrun=False):
         info = self.get_info()
-        if 1 <= slot_id <= 18:  # resource fields
-            resource_id = [_ for _ in info["resource_fields"] if _["id"] == slot_id][0]["resource_id"]
+        if not (1 <= slot_id <= 40):
+            return False
+        build_id = [_ for _ in info["resource_fields" if slot_id < 19 else "buildings"] if _["id"] == slot_id][0]["resource_id" if slot_id < 19 else "building_id"]
+        if slot_id < 19 or build_id:  # resource fields or already built up
             action_page = self.session.get("https://{server}{url}".format(
                 server=self.server,
                 url=self.urls["build"]
             ), params={
                 "id": slot_id,
-                "gid": resource_id
+                "gid": build_id
             })
             action_soup = BeautifulSoup(action_page.text, "html.parser")
             action_info = {"demand": {}}
-            action_consume = action_soup.select("div#contract div.resource")
-            action_info["demand"] = {self.mapping["resources_long"]: _.get_text() for index, _ in enumerate(action_consume[:len(self.mapping["resources_long"])])}
+            action_info["slot_id"] = slot_id
+            action_info["build_id"] = build_id
+            action_demand = action_soup.select("div#contract div.resource")
+            action_info["demand"] = {self.mapping["resources_long"][index]: int(_.get_text()) for index, _ in enumerate(action_demand[:len(self.mapping["resources_long"])])}
             action_info["duration"] = action_soup.select("div.duration")[0].get_text()
             action_button = action_soup.select("div.upgradeButtonsContainer button")[0]
             if "green" in action_button.get("class"):
                 action_info["url"] = action_button.get("onclick").split("'")[1]
-                self.session.get("https://{server}{url}".format(
-                    server=self.server,
-                    url=action_info["url"])
-                )
-                return True
+                if not dryrun:
+                    self.session.get("https://{server}{url}".format(
+                        server=self.server,
+                        url=action_info["url"])
+                    )
+                return {
+                    "upgrading": True, 
+                    "action_info": action_info, 
+                    "message": "ok"
+                }
             else:
-                return False
-        if 19 <= slot_id <= 40:  # buildings
-            pass  # to be done
+                return {
+                    "upgrading": False, 
+                    "action_info": action_info,
+                    "message": "upgrade not available"
+                }
+        else:  # no building at an inner slot
+            action_page = self.session.get("https://{server}{url}".format(
+                server=self.server,
+                url=self.urls["build"]
+            ), params={
+                "id": slot_id
+            })
+            action_soup = BeautifulSoup(action_page.text, "html.parser")
+            available_building = [{
+                "id": int(re.search("\d+", _.select("div.contract")[0].get("id")).group()),
+                "name": _.select("h2")[0].get_text().lower()
+            } for _ in action_soup.select("div#build div.buildingWrapper") if _.select("button.green")]
+            if building_id not in [_["id"] for _ in available_building]:
+                return {
+                    "upgrading": False, 
+                    "available_building": available_building,
+                    "message": "building not available"
+                }
+            else:
+                action_info = {"demand": {}}
+                action_info["slot_id"] = slot_id
+                action_info["build_id"] = building_id
+                action_demand = action_soup.select("div#contract_building{building_id} div.resource".format(
+                    building_id=building_id    
+                ))
+                action_info["demand"] = {self.mapping["resources_long"][index]: int(_.get_text()) for index, _ in enumerate(action_demand[:len(self.mapping["resources_long"])])}
+                action_info["duration"] = action_soup.select("div.duration")[0].get_text()
+                action_button = action_soup.select("div#contract_building{building_id} button.green".format(
+                    building_id=building_id    
+                ))[0]
+                action_info["url"] = action_button.get("onclick").split("'")[1]
+                if not dryrun:
+                    self.session.get("https://{server}{url}".format(
+                        server=self.server,
+                        url=action_info["url"])
+                    )
+                return {
+                    "upgrading": True, 
+                    "action_info": action_info, 
+                    "message": "ok"
+                }
+
