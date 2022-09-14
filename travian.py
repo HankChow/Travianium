@@ -14,11 +14,16 @@ class Travian(object):
         self.password = os.getenv("tr_password")
         self.server = os.getenv("tr_server")
         self.session = requests.session()
+        self.mapping = {
+            "resources_short": ["lumber", "clay", "iron", "crop"],
+            "resources_long": ["lumber", "clay", "iron", "crop", "free_crop"],
+        }
         self.urls = {
             "login": "/api/v1/auth/login",
             "dorf1": "/dorf1.php",
             "dorf2": "/dorf2.php",
             "tile": "/api/v1/map/tile-details",
+            "build": "/build.php",
         }
         self.selectors = {
             "dorf1_player_name": "div#sidebarBoxActiveVillage div.playerName",
@@ -77,11 +82,7 @@ class Travian(object):
         info["stock"]["crop"] = int(stock.select(".granary .stockBarButton")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape'))
         info["stock"]["free_crop"] = int(stock.select(".granary .stockBarButton")[1].get_text().encode('ascii', 'ignore').decode('unicode_escape'))
         production = soup_dorf1.select(self.selectors["dorf1_production"])
-        info["production"] = {}
-        info["production"]["lumber"] = int(production[0].select("td.num")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape'))
-        info["production"]["clay"] = int(production[1].select("td.num")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape'))
-        info["production"]["iron"] = int(production[2].select("td.num")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape'))
-        info["production"]["crop"] = int(production[3].select("td.num")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape'))
+        info["production"] = {self.mapping["resources_short"][index]: int(_.select("td.num")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape')) for index, _ in enumerate(production[:len(self.mapping["resources_short"])])}
         resource_fields = soup_dorf1.select(self.selectors["dorf1_resource_fields"])
         info["resource_fields"] = []
         for resource_field in resource_fields:
@@ -212,13 +213,9 @@ class Travian(object):
                 "gid": resource_id
             })
             action_soup = BeautifulSoup(action_page.text, "html.parser")
-            action_info = {"consume": {}}
+            action_info = {"demand": {}}
             action_consume = action_soup.select("div#contract div.resource")
-            action_info["consume"]["lumber"] = action_consume[0].get_text()
-            action_info["consume"]["clay"] = action_consume[1].get_text()
-            action_info["consume"]["iron"] = action_consume[2].get_text()
-            action_info["consume"]["crop"] = action_consume[3].get_text()
-            action_info["consume"]["free_crop"] = action_consume[4].get_text()
+            action_info["demand"] = {self.mapping["resources_long"]: _.get_text() for index, _ in enumerate(action_consume[:len(self.mapping["resources_long"])])}
             action_info["duration"] = action_soup.select("div.duration")[0].get_text()
             action_button = action_soup.select("div.upgradeButtonsContainer button")[0]
             if "green" in action_button.get("class"):
