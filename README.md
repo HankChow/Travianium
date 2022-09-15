@@ -24,7 +24,7 @@ Personal credentials are not stored in the code or certain files. They should be
 Currently used environment variables are shown below:
 
 * `tr_username`: the username for logging in to Travian
-* `tr_password`: the password for looging in to Travian
+* `tr_password`: the password for logging in to Travian
 * `tr_server`: the hostname of the Travian server, for example `gos.x1.international.travian.com`
 
 
