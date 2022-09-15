@@ -49,3 +49,5 @@ Currently used environment variables are shown below:
 * actions
   * producing troops
   * sending troops
+* code
+  * assertion for avoiding page structure changing
