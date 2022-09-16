@@ -43,6 +43,9 @@ Currently used environment variables are shown below:
 
 ### To do
 
+* bugfix
+  * not displaying correctly when there are both incoming and outgoing movements
+  * building status of stone wall
 * getting information
   * hero
   * villages
@@ -51,3 +54,5 @@ Currently used environment variables are shown below:
   * sending troops
 * code
   * assertion for avoiding page structure changing
+
+
