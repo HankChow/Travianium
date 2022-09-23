@@ -46,7 +46,6 @@ Currently used environment variables are shown below:
 
 * bugfix
   * not displaying correctly when there are both incoming and outgoing movements
-  * building status of stone wall
 * getting information
   * villages
 * actions

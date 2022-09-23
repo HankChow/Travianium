@@ -148,16 +148,15 @@ class Travian(object):
         buildings = soup_dorf2.select(self.selectors["dorf2_buildings"])
         info["buildings"] = []
         for building in buildings:
-            try:
+            if building.get("data-aid"):
                 b = {
                     "id": int(building.get("data-aid")),
                     "building_id": int(building.get("data-gid")),
                     "name": building.get("data-name"),
                     "level": int(building.select("a")[0]["data-level"]) if building.get("data-name") else 0
                 }
-            except:
-                print(building)
-            info["buildings"].append(b)
+            if b not in info["buildings"]:
+                info["buildings"].append(b)
         return info
         
     def get_hero_info(self):
