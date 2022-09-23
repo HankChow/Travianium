@@ -166,7 +166,7 @@ class Travian(object):
         ))
         hero_info = {}
         attributes_soup = BeautifulSoup(attributes_page.text, "html.parser")
-        hero_json_raw = json.loads("".join(attributes_soup.find_all(text=re.compile(".*screenData.*"))[0].split("\n")[6].split(":", 1)[1:]).strip(","))  # too hardcode
+        hero_json_raw = json.loads("".join([line for line in attributes_soup.find(text=re.compile(".*screenData.*")).split("\n") if "screenData" in line][0].split(":", 1)[1:]).strip(","))  # too hardcode
         hero_info["attribute_points"] = hero_json_raw["hero"]["attributePoints"]
         hero_info["attack_behaviour"] = hero_json_raw["hero"]["attackBehaviour"]
         hero_info["experience"] = hero_json_raw["hero"]["experience"]
