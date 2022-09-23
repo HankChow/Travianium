@@ -132,8 +132,8 @@ class Travian(object):
                         "duration": _.select("div.dur_r span.timer")[0].get_text()
                     } for _ in movement.select("tr") if _.select("div.mov") and _.select("div.dur_r span.timer")]
         building_list = soup_dorf1.select(self.selectors["dorf1_building_list"])
+        info["building_list"] = []
         if building_list:
-            info["building_list"] = []
             for bl in building_list:
                 info["building_list"].append({
                     "name": list(bl.select("div.name")[0].strings)[0].strip(),
