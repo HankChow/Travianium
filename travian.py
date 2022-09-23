@@ -191,7 +191,6 @@ class Travian(object):
         }).json()
         tile_html = tile_json["html"]
         soup_tile = BeautifulSoup(tile_html, "html.parser")
-        # return soup_tile
         tile_info = {}
         if not soup_tile.select("div#map_details"):
             tile_info["type"] = "wilderness"
