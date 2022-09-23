@@ -25,7 +25,8 @@ class Travian(object):
             "dorf2": "/dorf2.php",
             "tile": "/api/v1/map/tile-details",
             "build": "/build.php",
-            "hero_inventory": "/hero/inventory",
+            "hero_inventory": "/api/v1/hero/v2/screen/inventory",
+            "hero_click": "/api/v1/hero/v2/inventory/click",
             "hero_attributes": "/hero/attributes",
             "hero_appearance": "/hero/appearance",
         }
@@ -159,25 +160,45 @@ class Travian(object):
                 info["buildings"].append(b)
         return info
         
-    def get_hero_info(self):
+    def get_hero_attributes(self):
         attributes_page = self.session.get("https://{server}{url}".format(
             server=self.server,
             url=self.urls["hero_attributes"]
         ))
-        hero_info = {}
+        hero_attributes = {}
         attributes_soup = BeautifulSoup(attributes_page.text, "html.parser")
-        hero_json_raw = json.loads("".join([line for line in attributes_soup.find(text=re.compile(".*screenData.*")).split("\n") if "screenData" in line][0].split(":", 1)[1:]).strip(","))  # too hardcode
-        hero_info["attribute_points"] = hero_json_raw["hero"]["attributePoints"]
-        hero_info["attack_behaviour"] = hero_json_raw["hero"]["attackBehaviour"]
-        hero_info["experience"] = hero_json_raw["hero"]["experience"]
-        hero_info["experience_percent"] = hero_json_raw["hero"]["experiencePercent"]
-        hero_info["health"] = round(hero_json_raw["hero"]["health"], 2)
-        hero_info["speed"] = hero_json_raw["hero"]["speed"]
-        hero_info["production"] = [{
+        hero_attr_raw = json.loads("".join([line for line in attributes_soup.find(text=re.compile(".*screenData.*")).split("\n") if "screenData" in line][0].split(":", 1)[1:]).strip(","))  # too hardcode
+        hero_attributes["attribute_points"] = hero_attr_raw["hero"]["attributePoints"]
+        hero_attributes["attack_behaviour"] = hero_attr_raw["hero"]["attackBehaviour"]
+        hero_attributes["experience"] = hero_attr_raw["hero"]["experience"]
+        hero_attributes["experience_percent"] = hero_attr_raw["hero"]["experiencePercent"]
+        hero_attributes["health"] = round(hero_attr_raw["hero"]["health"], 2)
+        hero_attributes["speed"] = hero_attr_raw["hero"]["speed"]
+        hero_attributes["production"] = [{
             "name": _,
-            "value": hero_json_raw["hero"]["productionTypes"][index]
+            "value": hero_attr_raw["hero"]["productionTypes"][index]
         } for index, _ in enumerate(self.mapping["resources_overall"])]
-        return hero_info
+        return hero_attributes
+        
+    def get_hero_inventory(self):
+        inventory_raw = self.session.get("https://{server}{url}".format(
+            server=self.server,
+            url=self.urls["hero_inventory"]
+        ), headers={
+            "Authorization": "Bearer {}".format(self.token)
+        }).json()
+        inventory = {}
+        inventory["checksum"] = inventory_raw["checksum"]
+        inventory["resources"] = {_: {} for _ in self.mapping["resources_short"]}
+        for resource in inventory["resources"].keys():
+            inventory_resource = [_ for _ in inventory_raw["viewData"]["itemsInventory"] if _["name"] == resource.capitalize()][0]
+            inventory["resources"][resource] = {
+                "village": inventory_resource["alreadyEquipped"],
+                "amount": inventory_resource["amount"],
+                "transfer_id": inventory_resource["id"],
+                "max_transfer": inventory_resource["maxInput"]
+            }
+        return inventory
         
     def get_tile_info(self, x, y):
         tile_json = self.session.post("https://{server}{url}".format(
@@ -316,5 +337,41 @@ class Travian(object):
                     "upgrading": True, 
                     "action_info": action_info, 
                     "message": "ok"
+                }
+                
+    def transfer_resources_from_hero(self, resources):
+        for k, v in resources.items():
+            hero_inventory = self.get_hero_inventory()
+            if v <= hero_inventory["resources"][k]["amount"]:
+                if v <= hero_inventory["resources"][k]["max_transfer"]:
+                    self.session.post("https://{server}{url}".format(
+                        server=self.server,
+                        url=self.urls["hero_click"]
+                    ), json={
+                        "action": "inventory",
+                        "checksum": hero_inventory["checksum"],
+                        "id": hero_inventory["resources"][k]["transfer_id"],
+                        "context": "inventory",
+                        "amount": v
+                    }, headers={
+                        "Authorization": "Bearer {}".format(self.token)
+                    })
+                    transferred = self.get_hero_inventory()
+                    return {
+                        "transferred": True,
+                        "current_resources": {
+                            resource: transferred["resources"][resource]["village"] for resource in transferred["resources"].keys()
+                        },
+                        "message": "ok"
+                    }
+                else:
+                    return {
+                        "transferred": False,
+                        "message": "no enough space for warehouse or granary"
+                    }
+            else:
+                return {
+                    "transferred": False,
+                    "message": "no enough resource in hero's invetory"
                 }
 
