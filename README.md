@@ -37,6 +37,7 @@ Currently used environment variables are shown below:
   * level of resource fields and buildings
   * building list
   * maps
+  * hero
 * actions
   * upgrading resource fields and buildings
 
@@ -47,7 +48,6 @@ Currently used environment variables are shown below:
   * not displaying correctly when there are both incoming and outgoing movements
   * building status of stone wall
 * getting information
-  * hero
   * villages
 * actions
   * producing troops

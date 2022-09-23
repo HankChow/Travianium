@@ -17,6 +17,7 @@ class Travian(object):
         self.mapping = {
             "resources_short": ["lumber", "clay", "iron", "crop"],
             "resources_long": ["lumber", "clay", "iron", "crop", "free_crop"],
+            "resources_overall": ["overall", "lumber", "clay", "iron", "crop"]
         }
         self.urls = {
             "login": "/api/v1/auth/login",
@@ -24,6 +25,9 @@ class Travian(object):
             "dorf2": "/dorf2.php",
             "tile": "/api/v1/map/tile-details",
             "build": "/build.php",
+            "hero_inventory": "/hero/inventory",
+            "hero_attributes": "/hero/attributes",
+            "hero_appearance": "/hero/appearance",
         }
         self.selectors = {
             "dorf1_player_name": "div#sidebarBoxActiveVillage div.playerName",
@@ -144,14 +148,37 @@ class Travian(object):
         buildings = soup_dorf2.select(self.selectors["dorf2_buildings"])
         info["buildings"] = []
         for building in buildings:
-            b = {
-                "id": int(building.get("data-aid")),
-                "building_id": int(building.get("data-gid")),
-                "name": building.get("data-name"),
-                "level": int(building.select("a")[0]["data-level"]) if building.get("data-name") else 0
-            }
+            try:
+                b = {
+                    "id": int(building.get("data-aid")),
+                    "building_id": int(building.get("data-gid")),
+                    "name": building.get("data-name"),
+                    "level": int(building.select("a")[0]["data-level"]) if building.get("data-name") else 0
+                }
+            except:
+                print(building)
             info["buildings"].append(b)
         return info
+        
+    def get_hero_info(self):
+        attributes_page = self.session.get("https://{server}{url}".format(
+            server=self.server,
+            url=self.urls["hero_attributes"]
+        ))
+        hero_info = {}
+        attributes_soup = BeautifulSoup(attributes_page.text, "html.parser")
+        hero_json_raw = json.loads("".join(attributes_soup.find_all(text=re.compile(".*screenData.*"))[0].split("\n")[6].split(":", 1)[1:]).strip(","))  # too hardcode
+        hero_info["attribute_points"] = hero_json_raw["hero"]["attributePoints"]
+        hero_info["attack_behaviour"] = hero_json_raw["hero"]["attackBehaviour"]
+        hero_info["experience"] = hero_json_raw["hero"]["experience"]
+        hero_info["experience_percent"] = hero_json_raw["hero"]["experiencePercent"]
+        hero_info["health"] = round(hero_json_raw["hero"]["health"], 2)
+        hero_info["speed"] = hero_json_raw["hero"]["speed"]
+        hero_info["production"] = [{
+            "name": _,
+            "value": hero_json_raw["hero"]["productionTypes"][index]
+        } for index, _ in enumerate(self.mapping["resources_overall"])]
+        return hero_info
         
     def get_tile_info(self, x, y):
         tile_json = self.session.post("https://{server}{url}".format(
