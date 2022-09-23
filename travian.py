@@ -267,6 +267,18 @@ class Travian(object):
             action_demand = action_soup.select("div#contract div.resource")
             action_info["demand"] = {self.mapping["resources_long"][index]: int(_.get_text()) for index, _ in enumerate(action_demand[:len(self.mapping["resources_long"])])}
             action_info["duration"] = action_soup.select("div.duration")[0].get_text()
+            if action_info["demand"]["lumber"] < info["stock"]["warehouse_capacity"] or action_info["demand"]["clay"] < info["stock"]["warehouse_capacity"] or action_info["demand"]["iron"] < info["stock"]["warehouse_capacity"]:
+                return {
+                    "upgrading": False, 
+                    "action_info": action_info,
+                    "message": "extend warehouse first"
+                }
+            if action_info["demand"]["crop"] < info["stock"]["granary_capacity"]:
+                return {
+                    "upgrading": False, 
+                    "action_info": action_info,
+                    "message": "extend granary first"
+                }
             action_button = action_soup.select("div.upgradeButtonsContainer button")[0]
             if "green" in action_button.get("class"):
                 action_info["url"] = action_button.get("onclick").split("'")[1]
