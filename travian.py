@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 
@@ -6,6 +7,8 @@ import requests
 
 from bs4 import BeautifulSoup
 
+
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(asctime)s - %(message)s")
 
 class Travian(object):
     
@@ -43,6 +46,7 @@ class Travian(object):
         self.logged_in = self.login()
         
     def login(self):
+        logging.debug("Start logging in.")
         nonce_json = self.session.post("https://{server}{url}".format(
             server=self.server,
             url=self.urls["login"]
@@ -53,12 +57,14 @@ class Travian(object):
             "mobileOptimizations": False
         }).json()
         nonce = nonce_json.get("nonce")
+        logging.debug("login nonce: {}".format(nonce))
         if nonce:
             token_json = self.session.post("https://{server}/api/v1/auth/{nonce}".format(
                 server=self.server,
                 nonce=nonce
             )).json()
             token = token_json.get("token")
+            logging.debug("login token: {}".format(token))
             self.token = token
             test_login = self.session.get("https://{server}{url}".format(
                 server=self.server,
@@ -66,17 +72,23 @@ class Travian(object):
             ))
             soup = BeautifulSoup(test_login.text, "html.parser")
             if soup.select(self.selectors["dorf1_player_name"]) and (soup.select(self.selectors["dorf1_player_name"])[0].string == self.username):
+                debug.info("Login successfully, username: {}".format(self.username))
                 return True
+            debug.error("Login failed, cannot get the username.")
+        else:
+            debug.error("Login failed, cannot get the nonce.")
         return False
             
     def get_info(self):
         info = {}
         # dorf1
+        logging.debug("Getting info from dorf1.")
         dorf1_page = self.session.get("https://{server}{url}".format(
             server=self.server,
             url=self.urls["dorf1"]
         ))
         soup_dorf1 = BeautifulSoup(dorf1_page.text, "html.parser")
+        logging.debug("Got dorf1 page.")
         stock = soup_dorf1.select(self.selectors["dorf1_stock"])[0]
         info["stock"] = {}
         info["stock"]["warehouse_capacity"] = int(stock.select(".warehouse .capacity")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape').replace(",", ""))
@@ -141,11 +153,13 @@ class Travian(object):
                     "duration": bl.select("div.buildDuration span.timer")[0].get_text()
                 })
         # dorf2
+        logging.debug("Getting info from dorf2.")
         dorf2_page = self.session.get("https://{server}{url}".format(
             server=self.server,
             url=self.urls["dorf2"]
         ))
         soup_dorf2 = BeautifulSoup(dorf2_page.text, "html.parser")
+        logging.debug("Got dorf2 page.")
         buildings = soup_dorf2.select(self.selectors["dorf2_buildings"])
         info["buildings"] = []
         for building in buildings:
@@ -161,12 +175,14 @@ class Travian(object):
         return info
         
     def get_hero_attributes(self):
+        logging.debug("Getting hero info.")
         attributes_page = self.session.get("https://{server}{url}".format(
             server=self.server,
             url=self.urls["hero_attributes"]
         ))
-        hero_attributes = {}
         attributes_soup = BeautifulSoup(attributes_page.text, "html.parser")
+        logging.debug("Got hero info page.")
+        hero_attributes = {}
         hero_attr_raw = json.loads("".join([line for line in attributes_soup.find(text=re.compile(".*screenData.*")).split("\n") if "screenData" in line][0].split(":", 1)[1:]).strip(","))  # too hardcode
         hero_attributes["attribute_points"] = hero_attr_raw["hero"]["attributePoints"]
         hero_attributes["attack_behaviour"] = hero_attr_raw["hero"]["attackBehaviour"]
@@ -181,12 +197,18 @@ class Travian(object):
         return hero_attributes
         
     def get_hero_inventory(self):
+        logging.debug("Getting hero inventory.")
         inventory_raw = self.session.get("https://{server}{url}".format(
             server=self.server,
             url=self.urls["hero_inventory"]
         ), headers={
             "Authorization": "Bearer {}".format(self.token)
         }).json()
+        if inventory_raw:
+            logging.debug("Got hero inventory JSON.")
+        else:
+            logging.error("Failed to get hero inventory JSON.")
+            return None
         inventory = {}
         inventory["checksum"] = inventory_raw["checksum"]
         inventory["resources"] = {_: {} for _ in self.mapping["resources_short"]}
@@ -201,6 +223,7 @@ class Travian(object):
         return inventory
         
     def get_tile_info(self, x, y):
+        logging.debug("Getting tile info of ({}, {})".format(x, y))
         tile_json = self.session.post("https://{server}{url}".format(
             server=self.server,
             url=self.urls["tile"]
@@ -210,6 +233,7 @@ class Travian(object):
         }, headers={
             "Authorization": "Bearer {}".format(self.token)
         }).json()
+        logging.debug("Got tile info JSON.")
         tile_html = tile_json["html"]
         soup_tile = BeautifulSoup(tile_html, "html.parser")
         tile_info = {}
@@ -248,11 +272,15 @@ class Travian(object):
         return tile_info
 
     def upgrade(self, slot_id, building_id=None, dryrun=False):
+        logging.debug("Execute upgrading job.")
         info = self.get_info()
         if not (1 <= slot_id <= 40):
+            logging.error("slot_id should between 1 and 40.")
             return False
         build_id = [_ for _ in info["resource_fields" if slot_id < 19 else "buildings"] if _["id"] == slot_id][0]["resource_id" if slot_id < 19 else "building_id"]
         if slot_id < 19 or build_id:  # resource fields or already built up
+            logging.debug("slot_id={}, for resource fields".format(slot_id))
+            logging.debug("Getting resource field upgrading page.")
             action_page = self.session.get("https://{server}{url}".format(
                 server=self.server,
                 url=self.urls["build"]
@@ -261,6 +289,7 @@ class Travian(object):
                 "gid": build_id
             })
             action_soup = BeautifulSoup(action_page.text, "html.parser")
+            logging.debug("Got resource field upgrading page.")
             action_info = {"demand": {}}
             action_info["slot_id"] = slot_id
             action_info["build_id"] = build_id
@@ -268,12 +297,14 @@ class Travian(object):
             action_info["demand"] = {self.mapping["resources_long"][index]: int(_.get_text()) for index, _ in enumerate(action_demand[:len(self.mapping["resources_long"])])}
             action_info["duration"] = action_soup.select("div.duration")[0].get_text()
             if action_info["demand"]["lumber"] < info["stock"]["warehouse_capacity"] or action_info["demand"]["clay"] < info["stock"]["warehouse_capacity"] or action_info["demand"]["iron"] < info["stock"]["warehouse_capacity"]:
+                logging.warning("Failed to upgrade, warehouse capacity is not enough.")
                 return {
                     "upgrading": False, 
                     "action_info": action_info,
                     "message": "extend warehouse first"
                 }
             if action_info["demand"]["crop"] < info["stock"]["granary_capacity"]:
+                logging.warning("Failed to upgrade, granary capacity is not enough.")
                 return {
                     "upgrading": False, 
                     "action_info": action_info,
@@ -287,18 +318,21 @@ class Travian(object):
                         server=self.server,
                         url=action_info["url"])
                     )
+                logging.info("Upgrading slot_id={} now.".format(slot_id))
                 return {
                     "upgrading": True, 
                     "action_info": action_info, 
                     "message": "ok"
                 }
             else:
+                logging.warning("Failed to upgrade, resource is not affordable.")
                 return {
                     "upgrading": False, 
                     "action_info": action_info,
                     "message": "upgrade not available"
                 }
         else:  # no building at an inner slot
+            logging.debug("slot_id={}, for inner buildings".format(slot_id))
             action_pages = [self.session.get("https://{server}{url}".format(
                 server=self.server,
                 url=self.urls["build"]
@@ -307,6 +341,7 @@ class Travian(object):
                 "category": i
             }) for i in range(1, 4)]
             action_soups = [BeautifulSoup(action_page.text, "html.parser") for action_page in action_pages]
+            logging.debug("Got inner building upgrading page.")
             available_buildings = []
             for index, action_soup in enumerate(action_soups):
                 available_buildings.extend({
@@ -315,12 +350,14 @@ class Travian(object):
                     "category": index + 1
                 } for _ in action_soup.select("div#build div.buildingWrapper") if _.select("button.green"))
             if not building_id:
+                logging.warning("Build on an empty slot and building_id is required.")
                 return {
                     "upgrading": False, 
                     "available_buildings": available_buildings,
                     "message": "the slot is empty, building_id is needed"
                 }
             elif building_id not in [_["id"] for _ in available_buildings]:
+                logging.warning("This building is not available now.")
                 return {
                     "upgrading": False, 
                     "available_buildings": available_buildings,
@@ -345,6 +382,7 @@ class Travian(object):
                         server=self.server,
                         url=action_info["url"])
                     )
+                logging.info("Upgrading slot_id={} now.".format(slot_id))
                 return {
                     "upgrading": True, 
                     "action_info": action_info, 
@@ -369,6 +407,7 @@ class Travian(object):
                         "Authorization": "Bearer {}".format(self.token)
                     })
                     transferred = self.get_hero_inventory()
+                    logging.info("Transferred {} {} from hero's inventory to the village.".format(v, k))
                     return {
                         "transferred": True,
                         "current_resources": {
@@ -377,11 +416,13 @@ class Travian(object):
                         "message": "ok"
                     }
                 else:
+                    logging.warning("Failed, no enough space for warehouse or granary.")
                     return {
                         "transferred": False,
                         "message": "no enough space for warehouse or granary"
                     }
             else:
+                logging.warning("Failed, no enough resource in hero's inventory.")
                 return {
                     "transferred": False,
                     "message": "no enough resource in hero's invetory"
