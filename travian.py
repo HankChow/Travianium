@@ -14,8 +14,17 @@ class Travian(object):
     
     def __init__(self):
         self.username = os.getenv("tr_username")
+        if not self.username:
+            logging.error("Login failed, username is not given.")
+            exit()
         self.password = os.getenv("tr_password")
+        if not self.password:
+            logging.error("Login failed, password is not given.")
+            exit()
         self.server = os.getenv("tr_server")
+        if not self.server:
+            logging.error("Login failed, server is not given.")
+            exit()
         self.session = requests.session()
         self.mapping = {
             "resources_short": ["lumber", "clay", "iron", "crop"],
