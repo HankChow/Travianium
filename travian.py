@@ -166,6 +166,11 @@ class Travian(object):
             "current": "active" in _.get("class")
         } for _ in village_list]
         info["loyalty"] = soup_dorf1.select(self.selectors["dorf1_loyalty"])[0].get_text().encode('ascii', 'ignore').decode('unicode_escape')
+        culture_points = re.findall('\d+\/\d+', soup_dorf1.select("div.expansionSlotInfo")[0].get("title").encode('ascii', 'ignore').decode('unicode_escape'))[-1]
+        info["culture_points"] = {
+            "current": int(culture_points.split("/")[0]),
+            "next_village": int(culture_points.split("/")[1])
+        }
         # dorf2
         logging.debug("Getting info from dorf2.")
         dorf2_page = self.session.get("https://{server}{url}".format(
