@@ -50,6 +50,8 @@ class Travian(object):
             "dorf1_troops": "div.villageInfobox table#troops tbody tr",
             "dorf1_movements": "div.villageInfobox table#movements",
             "dorf1_building_list": "div.buildingList ul li",
+            "dorf1_village_list": "div#sidebarBoxVillagelist div.villageList div.listEntry",
+            "dorf1_loyalty": "div#sidebarBoxActiveVillage div.loyalty span",
             "dorf2_buildings": "div#villageContent div",
         }
         self.logged_in = self.login()
@@ -117,14 +119,7 @@ class Travian(object):
                 "resource_id": int([re.match("gid(\d+)", _).group(1) for _ in resource_field.get("class") if re.match("gid\d+", _)][0]),
                 "level": int([re.match("level(\d+)", _).group(1) for _ in resource_field.get("class") if re.match("level\d+", _)][0])
             }
-            if rf["resource_id"] == 1:
-                rf["name"] = "lumber"
-            elif rf["resource_id"] == 2:
-                rf["name"] = "clay"
-            elif rf["resource_id"] == 3:
-                rf["name"] = "iron"
-            elif rf["resource_id"] == 4:
-                rf["name"] = "corn"
+            rf["name"] = self.mapping["resources_overall"][rf["resource_id"]]
             info["resource_fields"].append(rf)
         troops = soup_dorf1.select(self.selectors["dorf1_troops"])
         if troops[0].select("td.noTroops"):
@@ -161,7 +156,7 @@ class Travian(object):
                     "level": bl.select("div.name span.lvl")[0].get_text(),
                     "duration": bl.select("div.buildDuration span.timer")[0].get_text()
                 })
-        village_list = soup_dorf1.select("div#sidebarBoxVillagelist div.villageList div.listEntry")
+        village_list = soup_dorf1.select(self.selectors["dorf1_village_list"])
         info["village_list"] = [{
             "name": _.select("span.name")[0].get_text(),
             "coordinates": {
@@ -170,6 +165,7 @@ class Travian(object):
             },
             "current": "active" in _.get("class")
         } for _ in village_list]
+        info["loyalty"] = soup_dorf1.select(self.selectors["dorf1_loyalty"])[0].get_text().encode('ascii', 'ignore').decode('unicode_escape')
         # dorf2
         logging.debug("Getting info from dorf2.")
         dorf2_page = self.session.get("https://{server}{url}".format(
