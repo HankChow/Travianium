@@ -161,6 +161,15 @@ class Travian(object):
                     "level": bl.select("div.name span.lvl")[0].get_text(),
                     "duration": bl.select("div.buildDuration span.timer")[0].get_text()
                 })
+        village_list = soup_dorf1.select("div#sidebarBoxVillagelist div.villageList div.listEntry")
+        info["village_list"] = [{
+            "name": _.select("span.name")[0].get_text(),
+            "coordinates": {
+                "x": int(_.select("span.coordinatesGrid")[0].get("data-x")),
+                "y": int(_.select("span.coordinatesGrid")[0].get("data-y")),
+            },
+            "current": "active" in _.get("class")
+        } for _ in village_list]
         # dorf2
         logging.debug("Getting info from dorf2.")
         dorf2_page = self.session.get("https://{server}{url}".format(
@@ -436,3 +445,4 @@ class Travian(object):
                     "transferred": False,
                     "message": "no enough resource in hero's invetory"
                 }
+
