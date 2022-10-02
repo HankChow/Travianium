@@ -81,11 +81,11 @@ class Travian(object):
             ))
             soup = BeautifulSoup(test_login.text, "html.parser")
             if soup.select(self.selectors["dorf1_player_name"]) and (soup.select(self.selectors["dorf1_player_name"])[0].string == self.username):
-                debug.info("Login successfully, username: {}".format(self.username))
+                logging.info("Login successfully, username: {}".format(self.username))
                 return True
-            debug.error("Login failed, cannot get the username.")
+            logging.error("Login failed, cannot get the username.")
         else:
-            debug.error("Login failed, cannot get the nonce.")
+            logging.error("Login failed, cannot get the nonce.")
         return False
 
     def get_info(self):
