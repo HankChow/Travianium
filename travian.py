@@ -130,23 +130,25 @@ class Travian(object):
                 "count": int(_.select("td.num")[0].get_text())
             } for _ in troops]
         movements = soup_dorf1.select(self.selectors["dorf1_movements"])
+        info["movements"] = {
+            "outgoing": [],
+            "incoming": []
+        }
         if movements:
-            info["movements"] = {
-                "outgoing": [],
-                "incoming": []
-            }
-            for movement in movements:
-                direction = None
-                if "Incoming" in movement.select("tr")[0].get_text():
+            direction = None
+            for movement in movements[0].select("tr"):
+                if "Incoming" in movement.get_text():
                     direction = "incoming"
-                if "Outgoing" in movement.select("tr")[0].get_text():
+                    continue
+                if "Outgoing" in movement.get_text():
                     direction = "outgoing"
+                    continue
                 if direction:
-                    info["movements"][direction] = [{
-                        "type": _.select("div.mov")[0].get_text().split()[1],
-                        "count": int(_.select("div.mov")[0].get_text().split()[0]),
-                        "duration": _.select("div.dur_r span.timer")[0].get_text()
-                    } for _ in movement.select("tr") if _.select("div.mov") and _.select("div.dur_r span.timer")]
+                    info["movements"][direction].append({
+                        "type": movement.select("div.mov")[0].get_text().split()[1],
+                        "count": int(movement.select("div.mov")[0].get_text().split()[0]),
+                        "duration": movement.select("div.dur_r span.timer")[0].get_text()
+                    })
         building_list = soup_dorf1.select(self.selectors["dorf1_building_list"])
         info["building_list"] = []
         if building_list:
