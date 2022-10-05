@@ -162,8 +162,8 @@ class Travian(object):
         info["village_list"] = [{
             "name": _.select("span.name")[0].get_text(),
             "coordinates": {
-                "x": int(_.select("span.coordinatesGrid")[0].get("data-x")),
-                "y": int(_.select("span.coordinatesGrid")[0].get("data-y")),
+                "x": int(_.select("span.coordinatesGrid span.coordinateX")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape').strip("(")),
+                "y": int(_.select("span.coordinatesGrid span.coordinateY")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape').strip(")")),
             },
             "current": "active" in _.get("class")
         } for _ in village_list]
