@@ -166,7 +166,6 @@ class Travian(object):
                 "y": int(_.select("span.coordinatesGrid span.coordinateY")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape').strip(")")),
             },
             "current": "active" in _.get("class")
-        } for _ in village_list]
         info["loyalty"] = soup_dorf1.select(self.selectors["dorf1_loyalty"])[0].get_text().encode('ascii', 'ignore').decode('unicode_escape')
         culture_points = re.findall('\d+\/\d+', soup_dorf1.select("div.expansionSlotInfo")[0].get("title").encode('ascii', 'ignore').decode('unicode_escape'))[-1]
         info["culture_points"] = {
