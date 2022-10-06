@@ -448,3 +448,31 @@ class Travian(object):
                     "message": "no enough resource in hero's invetory"
                 }
 
+    def get_producible_units(self):
+        producible_buildings = [_ for _ in self.get_info()["buildings"] if _["building_id"] in self.producible_buildings]
+        if not producible_buildings:
+            return None
+        producible_units = []
+        for pb in producible_buildings:
+            building_page = self.session.get("https://{server}{url}".format(
+                server=self.server,
+                url=self.urls["build"]
+            ), params={
+                "id": pb["id"],
+                "gid": pb["building_id"]
+            })
+            building_soup = BeautifulSoup(building_page.text, "html.parser")
+            producible_units.extend([{
+                "demand": {
+                    self.mapping["resources_long"][index]: resource.get_text()
+                for index, resource in enumerate(_.select("div.resource"))},
+                "duration": _.select("div.duration")[0].get_text(),
+                "max_production": int(_.select("a[href='#']")[0].get_text()),
+                "troop_type": _.select("input")[0].get("name"),
+                "troop_name": _.select("img")[0].get("alt"),
+                "building_id": pb["building_id"]
+            } for _ in building_soup.select("div.trainUnits div.troop div.details")])
+        return producible_units
+
+    def produce_units(self, product_plan):
+        pass
