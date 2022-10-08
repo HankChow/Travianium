@@ -449,17 +449,17 @@ class Travian(object):
                 }
 
     def get_producible_units(self):
-        producible_buildings = [_ for _ in self.get_info()["buildings"] if _["building_id"] in self.producible_buildings]
-        if not producible_buildings:
+        current_producible_buildings = [_ for _ in self.get_info()["buildings"] if _["building_id"] in self.producible_buildings]
+        if not current_producible_buildings:
             return None
         producible_units = []
-        for pb in producible_buildings:
+        for cpb in current_producible_buildings:
             building_page = self.session.get("https://{server}{url}".format(
                 server=self.server,
                 url=self.urls["build"]
             ), params={
-                "id": pb["id"],
-                "gid": pb["building_id"]
+                "id": cpb["id"],
+                "gid": cpb["building_id"]
             })
             building_soup = BeautifulSoup(building_page.text, "html.parser")
             producible_units.extend([{
@@ -470,7 +470,7 @@ class Travian(object):
                 "max_production": int(_.select("a[href='#']")[0].get_text()),
                 "troop_type": _.select("input")[0].get("name"),
                 "troop_name": _.select("img")[0].get("alt"),
-                "building_id": pb["building_id"]
+                "building_id": cpb["building_id"]
             } for _ in building_soup.select("div.trainUnits div.troop div.details")])
         return producible_units
 
