@@ -475,4 +475,35 @@ class Travian(object):
         return producible_units
 
     def produce_units(self, product_plan):
-        pass
+        current_producible_buildings = [_ for _ in self.get_info()["buildings"] if _["building_id"] in self.producible_buildings]
+        producible_units = self.get_producible_units()
+        #  group by building
+        for pb in self.producible_buildings:
+            current_building_slot_id = [_["id"] for _ in current_producible_buildings if _["building_id"] == pb][0]
+            pb_troop_types = {_["troop_type"]: _ for _ in producible_units if _["building_id"] == pb}
+            produce_unit_prefetch_page = self.session.get("https://{server}{url}".format(
+                server=self.server,
+                url=self.urls["build"]
+            ), params={
+                "id": current_building_slot_id,
+                "gid": pb
+            })
+            prefetch_soup = BeautifulSoup(produce_unit_prefetch_page.text, "html.parser")
+            produce_unit_payload = {
+                "action": prefetch_soup.select("form[name='snd'] input[name='action']")[0].get("value"),
+                "checksum": prefetch_soup.select("form[name='snd'] input[name='checksum']")[0].get("value"),
+                "s": int(prefetch_soup.select("form[name='snd'] input[name='s']")[0].get("value")),
+                "did": int(prefetch_soup.select("form[name='snd'] input[name='did']")[0].get("value")),
+                "s1": prefetch_soup.select("form[name='snd'] button[name='s1']")[0].get("value")
+            }
+            #  troop types in building
+            for ptt in pb_troop_types.keys():
+                produce_unit_payload[ptt] = min(int(product_plan.get(ptt, 0)), pb_troop_types[ptt]["max_production"])
+            self.session.post("https://{server}{url}".format(
+                server=self.server,
+                url=self.urls["build"]
+            ), params={
+                "id": current_building_slot_id,
+                "gid": pb
+            }, json=produce_unit_payload)
+            return produce_unit_payload
