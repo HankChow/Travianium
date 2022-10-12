@@ -459,9 +459,11 @@ class Travian(object):
     def get_producible_units(self):
         current_producible_buildings = [_ for _ in self.get_info()["buildings"] if _["building_id"] in self.producible_buildings]
         if not current_producible_buildings:
+            logging.warning("No buildings can produce units.")
             return None
         producible_units = []
         for cpb in current_producible_buildings:
+            logging.debug("Checking producible units in {}(building_id={}).".format(cpb["name"], cpb["building_id"]))
             building_page = self.session.get("https://{server}{url}".format(
                 server=self.server,
                 url=self.urls["build"]
@@ -485,6 +487,10 @@ class Travian(object):
     def produce_units(self, product_plan):
         current_producible_buildings = [_ for _ in self.get_info()["buildings"] if _["building_id"] in self.producible_buildings]
         producible_units = self.get_producible_units()
+        produce_result = {
+            "produced": True,
+            "details": []
+        }
         #  group by building
         for pb in self.producible_buildings:
             current_building_slot_id = [_["id"] for _ in current_producible_buildings if _["building_id"] == pb][0]
@@ -514,5 +520,8 @@ class Travian(object):
                 "id": current_building_slot_id,
                 "gid": pb
             }, json=produce_unit_payload)
-            return produce_unit_payload
-        
+            produce_result["details"].append({
+                "building_id": current_building_slot_id,
+                "detail": produce_unit_payload
+            })
+        return produce_result
