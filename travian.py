@@ -54,6 +54,13 @@ class Travian(object):
             "dorf1_loyalty": "div#sidebarBoxActiveVillage div.loyalty span",
             "dorf2_buildings": "div#villageContent div",
         }
+        self.producible_buildings = [
+            19,  # Barrack
+            20,  # Stable
+            21,  # Workshop
+            25,  # Residence
+            26,  # Palace
+        ]
         self.logged_in = self.login()
 
     def login(self):
@@ -166,6 +173,7 @@ class Travian(object):
                 "y": int(_.select("span.coordinatesGrid span.coordinateY")[0].get_text().encode('ascii', 'ignore').decode('unicode_escape').strip(")")),
             },
             "current": "active" in _.get("class")
+        } for _ in village_list]
         info["loyalty"] = soup_dorf1.select(self.selectors["dorf1_loyalty"])[0].get_text().encode('ascii', 'ignore').decode('unicode_escape')
         culture_points = re.findall('\d+\/\d+', soup_dorf1.select("div.expansionSlotInfo")[0].get("title").encode('ascii', 'ignore').decode('unicode_escape'))[-1]
         info["culture_points"] = {
@@ -447,7 +455,7 @@ class Travian(object):
                     "transferred": False,
                     "message": "no enough resource in hero's invetory"
                 }
-
+                
     def get_producible_units(self):
         current_producible_buildings = [_ for _ in self.get_info()["buildings"] if _["building_id"] in self.producible_buildings]
         if not current_producible_buildings:
@@ -507,3 +515,4 @@ class Travian(object):
                 "gid": pb
             }, json=produce_unit_payload)
             return produce_unit_payload
+        
