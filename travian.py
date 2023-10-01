@@ -10,18 +10,25 @@ from bs4 import BeautifulSoup
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(asctime)s - %(message)s")
 
+
 class Travian(object):
 
     def __init__(self):
-        self.username = os.getenv("tr_username")
+        config_file = "config.json"
+        try:
+            with open(config_file) as f:
+                config_json = json.load(f)
+        except Exception as e:
+            config_json = {}
+        self.username = config_json.get("username") or os.getenv("tr_username")
         if not self.username:
             logging.error("Login failed, username is not given.")
             exit()
-        self.password = os.getenv("tr_password")
+        self.password = config_json.get("password") or os.getenv("tr_password")
         if not self.password:
             logging.error("Login failed, password is not given.")
             exit()
-        self.server = os.getenv("tr_server")
+        self.server = config_json.get("server") or os.getenv("tr_server")
         if not self.server:
             logging.error("Login failed, server is not given.")
             exit()
