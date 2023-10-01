@@ -19,7 +19,7 @@ Travian is a web game I used to play more than ten years ago. It spends lots of 
 
 #### Environment Variables
 
-Personal credentials are not stored in the code or certain files. They should be set in the environment variables so that they can be read safely. 
+Personal credentials are not stored in the code. They should be set in the environment variables so that they can be read safely. 
 
 Currently used environment variables are shown below:
 
@@ -27,6 +27,15 @@ Currently used environment variables are shown below:
 * `tr_password`: the password for logging in to Travian
 * `tr_server`: the hostname of the Travian server, for example `gos.x1.international.travian.com`
 
+It's now supporting reading from configuration files. The configuration file name is hardcoded as `config.json` at the same directory. The configuration should be a JSON file and the format is like below:
+
+```
+{
+    "username": "",
+    "password": "",
+    "server": ""
+}
+```
 
 ### Done
 
