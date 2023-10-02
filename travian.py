@@ -11,6 +11,18 @@ from bs4 import BeautifulSoup
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(asctime)s - %(message)s")
 
 
+class Session(object):
+
+    def __init__(self):
+        self.session = requests.Session()
+
+    def get(self, url, *args, **kwargs):
+        return self.session.get(url, *args, **kwargs)
+
+    def post(self, url, *args, **kwargs):
+        return self.session.post(url, *args, **kwargs)
+
+
 class Travian(object):
 
     def __init__(self):
