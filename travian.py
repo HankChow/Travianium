@@ -15,11 +15,26 @@ class Session(object):
 
     def __init__(self):
         self.session = requests.Session()
+        config_file = "config.json"
+        try:
+            with open(config_file) as f:
+                config_json = json.load(f)
+        except Exception as e:
+            config_json = {}
+        self.proxy = config_json.get("proxy") or None
 
     def get(self, url, *args, **kwargs):
+        kwargs['proxies'] = {
+            "http": self.proxy,
+            "https": self.proxy
+        } if self.proxy else None
         return self.session.get(url, *args, **kwargs)
 
     def post(self, url, *args, **kwargs):
+        kwargs['proxies'] = {
+            "http": self.proxy,
+            "https": self.proxy
+        } if self.proxy else None
         return self.session.post(url, *args, **kwargs)
 
 
@@ -44,7 +59,7 @@ class Travian(object):
         if not self.server:
             logging.error("Login failed, server is not given.")
             exit()
-        self.session = requests.session()
+        self.s = Session()
         self.mapping = {
             "resources_short": ["lumber", "clay", "iron", "crop"],
             "resources_long": ["lumber", "clay", "iron", "crop", "free_crop"],
@@ -84,7 +99,7 @@ class Travian(object):
 
     def login(self):
         logging.debug("Start logging in.")
-        nonce_json = self.session.post(f"https://{self.server}{self.urls['login']}", json={
+        nonce_json = self.s.post(f"https://{self.server}{self.urls['login']}", json={
             "name": self.username,
             "password": self.password,
             "w": "1440:900",
@@ -93,11 +108,11 @@ class Travian(object):
         nonce = nonce_json.get("nonce")
         logging.debug(f"login nonce: {nonce}")
         if nonce:
-            token_json = self.session.post(f"https://{self.server}/api/v1/auth/{nonce}").json()
+            token_json = self.s.post(f"https://{self.server}/api/v1/auth/{nonce}").json()
             token = token_json.get("token")
             logging.debug(f"login token: {token}")
             self.token = token
-            test_login = self.session.get(f"https://{self.server}{self.urls['dorf1']}")
+            test_login = self.s.get(f"https://{self.server}{self.urls['dorf1']}")
             soup = BeautifulSoup(test_login.text, "html.parser")
             if soup.select(self.selectors["dorf1_player_name"]) and (soup.select(self.selectors["dorf1_player_name"])[0].string == self.username):
                 logging.info(f"Login successfully, username: {self.username}")
@@ -111,7 +126,7 @@ class Travian(object):
         info = {}
         # dorf1
         logging.debug("Getting info from dorf1.")
-        dorf1_page = self.session.get(f"https://{self.server}{self.urls['dorf1']}")
+        dorf1_page = self.s.get(f"https://{self.server}{self.urls['dorf1']}")
         soup_dorf1 = BeautifulSoup(dorf1_page.text, "html.parser")
         logging.debug("Got dorf1 page.")
         stock = soup_dorf1.select(self.selectors["dorf1_stock"])[0]
@@ -189,7 +204,7 @@ class Travian(object):
         }
         # dorf2
         logging.debug("Getting info from dorf2.")
-        dorf2_page = self.session.get(f"https://{self.server}{self.urls['dorf2']}")
+        dorf2_page = self.s.get(f"https://{self.server}{self.urls['dorf2']}")
         soup_dorf2 = BeautifulSoup(dorf2_page.text, "html.parser")
         logging.debug("Got dorf2 page.")
         buildings = soup_dorf2.select(self.selectors["dorf2_buildings"])
@@ -208,7 +223,7 @@ class Travian(object):
 
     def get_hero_attributes(self):
         logging.debug("Getting hero info.")
-        attributes_page = self.session.get(f"https://{self.server}{self.urls['hero_attributes']}")
+        attributes_page = self.s.get(f"https://{self.server}{self.urls['hero_attributes']}")
         attributes_soup = BeautifulSoup(attributes_page.text, "html.parser")
         logging.debug("Got hero info page.")
         hero_attributes = {}
@@ -227,7 +242,7 @@ class Travian(object):
 
     def get_hero_inventory(self):
         logging.debug("Getting hero inventory.")
-        inventory_raw = self.session.get(f"https://{self.server}{self.urls['hero_inventory']}", headers={
+        inventory_raw = self.s.get(f"https://{self.server}{self.urls['hero_inventory']}", headers={
             "Authorization": f"Bearer {self.token}"
         }).json()
         if inventory_raw:
@@ -250,7 +265,7 @@ class Travian(object):
 
     def get_tile_info(self, x, y):
         logging.debug(f"Getting tile info of ({x}, {y})")
-        tile_json = self.session.post(f"https://{self.server}{self.urls['tile']}", json={
+        tile_json = self.s.post(f"https://{self.server}{self.urls['tile']}", json={
             "x": x,
             "y": y
         }, headers={
@@ -304,7 +319,7 @@ class Travian(object):
         if slot_id < 19 or build_id:  # resource fields or already built up
             logging.debug(f"slot_id={slot_id}, for resource fields")
             logging.debug("Getting resource field upgrading page.")
-            action_page = self.session.get(f"https://{self.server}{self.urls['build']}", params={
+            action_page = self.s.get(f"https://{self.server}{self.urls['build']}", params={
                 "id": slot_id,
                 "gid": build_id
             })
@@ -334,7 +349,7 @@ class Travian(object):
             if "green" in action_button.get("class"):
                 action_info["url"] = action_button.get("onclick").split("'")[1]
                 if not dryrun:
-                    self.session.get(f"https://{self.server}{action_info["url"]}")
+                    self.s.get(f"https://{self.server}{action_info["url"]}")
                 logging.info(f"Upgrading slot_id={slot_id} now.")
                 return {
                     "upgrading": True,
@@ -350,7 +365,7 @@ class Travian(object):
                 }
         else:  # no building at an inner slot
             logging.debug(f"slot_id={slot_id}, for inner buildings")
-            action_pages = [self.session.get(f"https://{self.server}{self.urls['build']}", params={
+            action_pages = [self.s.get(f"https://{self.server}{self.urls['build']}", params={
                 "id": slot_id,
                 "category": i
             }) for i in range(1, 4)]
@@ -388,7 +403,7 @@ class Travian(object):
                 action_button = action_soups[building_in_category - 1].select(f"div#contract_building{building_id} button.green")[0]
                 action_info["url"] = action_button.get("onclick").split("'")[1]
                 if not dryrun:
-                    self.session.get(f"https://{self.server}{action_info["url"]}")
+                    self.s.get(f"https://{self.server}{action_info["url"]}")
                 logging.info(f"Upgrading slot_id={slot_id} now.")
                 return {
                     "upgrading": True,
@@ -401,7 +416,7 @@ class Travian(object):
             hero_inventory = self.get_hero_inventory()
             if v <= hero_inventory["resources"][k]["amount"]:
                 if v <= hero_inventory["resources"][k]["max_transfer"]:
-                    self.session.post(f"https://{self.server}{self.urls["hero_click"]}", json={
+                    self.s.post(f"https://{self.server}{self.urls["hero_click"]}", json={
                         "action": "inventory",
                         "checksum": hero_inventory["checksum"],
                         "id": hero_inventory["resources"][k]["transfer_id"],
@@ -440,7 +455,7 @@ class Travian(object):
         producible_units = []
         for cpb in current_producible_buildings:
             logging.debug(f"Checking producible units in {cpb['name']}(building_id={cpb['building_id']}).")
-            building_page = self.session.get(f"https://{self.server}{self.urls['build']}", params={
+            building_page = self.s.get(f"https://{self.server}{self.urls['build']}", params={
                 "id": cpb["id"],
                 "gid": cpb["building_id"]
             })
@@ -468,7 +483,7 @@ class Travian(object):
         for pb in self.producible_buildings:
             current_building_slot_id = [_["id"] for _ in current_producible_buildings if _["building_id"] == pb][0]
             pb_troop_types = {_["troop_type"]: _ for _ in producible_units if _["building_id"] == pb}
-            produce_unit_prefetch_page = self.session.get(f"https://{self.server}{self.urls['build']}", params={
+            produce_unit_prefetch_page = self.s.get(f"https://{self.server}{self.urls['build']}", params={
                 "id": current_building_slot_id,
                 "gid": pb
             })
@@ -483,7 +498,7 @@ class Travian(object):
             #  troop types in building
             for ptt in pb_troop_types.keys():
                 produce_unit_payload[ptt] = min(int(product_plan.get(ptt, 0)), pb_troop_types[ptt]["max_production"])
-            self.session.post(f"https://{self.server}{self.urls['build']}", params={
+            self.s.post(f"https://{self.server}{self.urls['build']}", params={
                 "id": current_building_slot_id,
                 "gid": pb
             }, json=produce_unit_payload)
